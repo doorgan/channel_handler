@@ -1,10 +1,10 @@
 spark_locals_without_parens = [
+  channel: 1,
   event: 1,
   event: 2,
   handler: 1,
   match: 1,
   match: 2,
-  payload: 1,
   plug: 1,
   plug: 2
 ]

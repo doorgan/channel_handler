@@ -83,6 +83,20 @@ defmodule ChannelHandler.Extension do
     ]
   }
 
+  @join %Spark.Dsl.Section{
+    name: :join,
+    schema: [
+      channel: [
+        type: :string,
+        required: true
+      ],
+      handler: [
+        type: {:fun, 3},
+        required: true
+      ]
+    ]
+  }
+
   @handlers %Spark.Dsl.Section{
     name: :handlers,
     describe: """
@@ -93,5 +107,5 @@ defmodule ChannelHandler.Extension do
   }
 
   use Spark.Dsl.Extension,
-    sections: [@handlers]
+    sections: [@join, @handlers]
 end

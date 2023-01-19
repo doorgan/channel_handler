@@ -36,6 +36,16 @@ defmodule ChannelHandler do
 
   def handle_before_compile(_opts) do
     quote location: :keep, generated: true do
+      @_channel Spark.Dsl.Extension.get_opt(__MODULE__, [:join], :channel)
+      @_join_fun Spark.Dsl.Extension.get_opt(__MODULE__, [:join], :handler)
+
+      if @_channel && @_join_fun do
+        def join(topic, payload, socket) do
+          socket = Phoenix.Socket.assign(socket, :__channel, @_channel)
+          apply(@_join_fun, [topic, payload, socket])
+        end
+      end
+
       for match_or_event <- Spark.Dsl.Extension.get_entities(__MODULE__, [:handlers]) do
         handler = ChannelHandler.get_handler(match_or_event)
         plugs = match_or_event.plugs
