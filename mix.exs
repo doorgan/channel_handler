@@ -11,7 +11,8 @@ defmodule ChannelHandler.MixProject do
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      docs: docs()
+      docs: docs(),
+      package: package()
     ]
   end
 
@@ -27,7 +28,17 @@ defmodule ChannelHandler.MixProject do
     [
       {:ex_doc, ">= 0.0.0"},
       {:phoenix, ">= 1.6.0"},
-      {:spark, github: "ash-project/spark", branch: "main"}
+      {:spark, "~> 0.4"}
+    ]
+  end
+
+  defp package do
+    [
+      description: "Utilities to organize Phoenix channels.",
+      licenses: ["Apache-2.0"],
+      links: %{
+        "GitHub" => @repo_url
+      }
     ]
   end
 
