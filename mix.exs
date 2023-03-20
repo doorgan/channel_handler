@@ -1,13 +1,17 @@
 defmodule ChannelHandler.MixProject do
   use Mix.Project
 
+  @repo_url "https://github.com/doorgan/channel_handler"
+  @version "0.1.0"
+
   def project do
     [
       app: :channel_handler,
-      version: "0.1.0",
-      elixir: "~> 1.14",
+      version: @version,
+      elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      docs: docs()
     ]
   end
 
@@ -21,8 +25,23 @@ defmodule ChannelHandler.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:phoenix, "~> 1.6.15"},
+      {:ex_doc, ">= 0.0.0"},
+      {:phoenix, ">= 1.6.0"},
       {:spark, github: "ash-project/spark", branch: "main"}
+    ]
+  end
+
+  defp docs do
+    [
+      extras: [
+        LICENSE: [title: "License"],
+        "README.md": [title: "Overview"]
+      ],
+      main: "readme",
+      homepage_url: @repo_url,
+      source_ref: "v#{@version}",
+      source_url: @repo_url,
+      formatters: ["html"]
     ]
   end
 end
