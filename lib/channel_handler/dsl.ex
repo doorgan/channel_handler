@@ -1,108 +1,77 @@
 defmodule ChannelHandler.Dsl do
-  @moduledoc false
+  defmodule Group do
+    defstruct [:prefix, :plugs, :handlers]
+  end
 
-  defmodule Plug do
-    @moduledoc false
-    defstruct [:function]
+  defmodule Delegate do
+    defstruct [:prefix, :module]
+  end
+
+  defmodule Handle do
+    defstruct [:name, :function]
   end
 
   defmodule Event do
-    @moduledoc false
-    defstruct [:name, :handler, :plugs, :payload]
+    defstruct [:name, :module, :function]
   end
 
-  defmodule Match do
-    @moduledoc false
-    defstruct [:prefix, :handler, :plugs]
+  defmodule Plug do
+    defstruct [:plug, :options]
   end
 
   @plug %Spark.Dsl.Entity{
     name: :plug,
     target: Plug,
-    args: [:function],
+    args: [:plug, {:optional, :options, []}],
     schema: [
-      function: [
+      plug: [
         type:
           {:spark_function_behaviour, ChannelHandler.Plugs.Plug,
            {ChannelHandler.Plugs.Plug.Function, 4}},
         required: true
-      ]
+      ],
+      options: [type: :any, required: false]
     ]
   }
-
-  @match_handler [
-    type:
-      {:spark_function_behaviour, ChannelHandler.Plugs.Handler,
-       {ChannelHandler.Plugs.Handler.Function, 4}},
-    required: true
-  ]
-
-  @event_handler [
-    type:
-      {:spark_function_behaviour, ChannelHandler.Plugs.Handler,
-       {ChannelHandler.Plugs.Handler.Function, 3}},
-    required: true
-  ]
 
   @event %Spark.Dsl.Entity{
     name: :event,
     target: Event,
-    args: [:name],
-    describe: """
-    Matches the `name` event and delegates it to a handler module or function.
-
-    It allows specifying the plugs that will run before the handler.
-
-    ## Examples
-
-        event "create_post" do
-          plug &ensure_authenticated/4
-
-          handler MyAppWeb.Channels.PostsHandler
-        end
-    """,
-    entities: [plugs: [@plug]],
+    args: [:name, :module, :function],
     schema: [
-      name: [
-        type: :string,
-        required: true,
-        doc: """
-        The event to match.
-        """
-      ],
-      handler: @event_handler
+      name: [type: :string, required: true],
+      module: [type: :atom, required: true],
+      function: [type: :atom, required: true]
     ]
   }
 
-  @match %Spark.Dsl.Entity{
-    name: :match,
-    describe: """
-    Matches an event starting with `prefix` and delegates it to a handler module
-    or function.
-
-    It allows specifying the plugs that will run before the handler.
-
-    ## Examples
-
-        match "posts:" do
-          plug &ensure_authenticated/4
-
-          handler MyAppWeb.Channels.PostsHandler
-        end
-    """,
-    target: Match,
-    args: [:prefix],
-    entities: [plugs: [@plug]],
+  @delegate %Spark.Dsl.Entity{
+    name: :delegate,
+    target: Delegate,
+    args: [:prefix, :module],
     schema: [
-      prefix: [
-        type: :string,
-        required: true,
-        doc: """
-        The event prefix to match. If you want to match any event, you can use
-        `""` as the prefix.
-        """
-      ],
-      handler: @match_handler
+      prefix: [type: :string, required: true],
+      module: [type: :atom, required: true]
+    ]
+  }
+
+  @handle %Spark.Dsl.Entity{
+    name: :handle,
+    target: Handle,
+    args: [:name, :function],
+    schema: [
+      name: [type: :string, required: true],
+      function: [type: {:fun, 3}, required: true]
+    ]
+  }
+
+  @group %Spark.Dsl.Entity{
+    name: :group,
+    target: Group,
+    args: [:prefix],
+    entities: [plugs: [@plug], handlers: [@event, @delegate, @handle]],
+    schema: [
+      prefix: [type: :string, required: true]
     ]
   }
 
@@ -129,15 +98,21 @@ defmodule ChannelHandler.Dsl do
     ]
   }
 
-  @handlers %Spark.Dsl.Section{
-    name: :handlers,
+  @router %Spark.Dsl.Section{
+    name: :router,
     describe: """
     Defines the `handle_in/3` functions for a Phoenix channel by matching
     on exact event names, or prefixes.
     """,
-    entities: [@event, @match]
+    entities: [
+      @plug,
+      @event,
+      @delegate,
+      @handle,
+      @group
+    ]
   }
 
   use Spark.Dsl.Extension,
-    sections: [@join, @handlers]
+    sections: [@join, @router]
 end

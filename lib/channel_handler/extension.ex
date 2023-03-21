@@ -1,48 +1,38 @@
 defmodule ChannelHandler.Extension do
+  @moduledoc false
+
   use Spark.Dsl,
     default_extensions: [extensions: ChannelHandler.Dsl]
 
-  alias ChannelHandler.Dsl
+  def process_plugs(plugs, socket, payload, context) do
+    Enum.reduce_while(plugs, {:cont, socket, payload, context}, fn plug,
+                                                                   {:cont, socket, payload,
+                                                                    context} ->
+      dbg(plug)
 
-  def explain(_, _), do: nil
-
-  @doc false
-  def get_handler(match_or_event) do
-    case match_or_event.handler do
-      {_, [fun: handler_fun]} -> handler_fun
-      {module, _} -> module
-    end
-  end
-
-  @doc false
-  def process_plugs(plugs, socket, payload, bindings, env) do
-    Enum.reduce_while(plugs, {:cont, socket, payload, bindings}, fn plug,
-                                                                    {:cont, socket, payload,
-                                                                     bindings} ->
       result =
-        case plug.function do
-          {_, [fun: fun]} ->
-            fun.(socket, payload, bindings, [])
+        case plug.plug do
+          {_, [fun: fun]} = fun_plug ->
+            fun.(socket, payload, context, plug.options)
 
-          {atom, opts} when is_atom(atom) ->
-            if atom |> to_string() |> String.starts_with?("Elixir.") do
-              atom.call(socket, payload, bindings, opts)
-            else
-              apply(env.module, atom, [socket, payload, bindings, opts])
-            end
+          {module, opts} when is_atom(module) ->
+            module.call(socket, payload, context, opts)
         end
 
       case result do
-        {:cont, socket, payload, bindings} -> {:cont, {:cont, socket, payload, bindings}}
+        {:cont, socket, payload, context} -> {:cont, {:cont, socket, payload, context}}
         {:reply, reply, socket} -> {:halt, {:reply, reply, socket}}
         {:noreply, socket} -> {:halt, {:noreply, socket}}
       end
     end)
   end
 
-  @doc false
+  def build_context(event) do
+    %ChannelHandler.Context{bindings: %{}, event: event}
+  end
+
   def handle_before_compile(_opts) do
-    quote location: :keep, generated: true do
+    quote location: :keep, generated: true, unquote: false do
       @_channel Spark.Dsl.Extension.get_opt(__MODULE__, [:join], :channel)
       @_join_fun Spark.Dsl.Extension.get_opt(__MODULE__, [:join], :handler)
 
@@ -53,96 +43,119 @@ defmodule ChannelHandler.Extension do
         end
       end
 
-      for match_or_event <- Spark.Dsl.Extension.get_entities(__MODULE__, [:handlers]) do
-        handler = ChannelHandler.Extension.get_handler(match_or_event)
-        plugs = match_or_event.plugs
+      router = Spark.Dsl.Extension.get_entities(__MODULE__, [:router])
 
-        case match_or_event do
-          %Dsl.Match{prefix: prefix} ->
-            @prefix prefix
-            @handler handler
-            @plugs plugs
-            def handle_in(@prefix <> event, payload, socket) do
-              {payload, bindings} =
-                case payload do
-                  {:binary, _} -> {payload, %{}}
-                  {payload, bindings} -> {payload, bindings}
-                  payload -> {payload, %{}}
-                end
+      {plugs, handlers} = Enum.split_with(router, &is_struct(&1, ChannelHandler.Dsl.Plug))
 
-              bindings =
-                Map.update(bindings, :__event__, @prefix <> event, &(&1 <> @prefix <> event))
+      dbg(plugs)
 
-              result =
-                ChannelHandler.Extension.process_plugs(
-                  @plugs,
-                  socket,
-                  payload,
-                  bindings,
-                  __ENV__
-                )
+      @handlers handlers
+      @plugs plugs
 
-              case result do
-                {:cont, socket, payload, bindings} ->
-                  case @handler do
-                    fun when is_function(fun) ->
-                      fun.(event, payload, bindings, socket)
+      def __plugs__() do
+        @plugs
+      end
 
-                    {m, f, a} ->
-                      apply(m, f, [event, {payload, bindings}, socket])
+      Enum.map(handlers, fn
+        %ChannelHandler.Dsl.Delegate{} = delegate ->
+          @delegate delegate
+          ChannelHandler.Extension.build_delegate(@delegate, @plugs)
 
-                    module when is_atom(module) ->
-                      module.handle_in(event, {payload, bindings}, socket)
-                  end
+        %ChannelHandler.Dsl.Event{} = event ->
+          @event event
+          ChannelHandler.Extension.build_event(@event, @plugs)
 
-                {:reply, reply, socket} ->
-                  {:reply, reply, socket}
+        %ChannelHandler.Dsl.Handle{} = handle ->
+          @handle handle
+          ChannelHandler.Extension.build_handle(@handle, @plugs)
 
-                {:noreply, socket} ->
-                  {:noreply, socket}
-              end
-            end
+        %ChannelHandler.Dsl.Group{} = group ->
+          @group group
+          ChannelHandler.Extension.build_group(@group, @plugs)
+      end)
+    end
+  end
 
-          %Dsl.Event{name: name} ->
-            @name name
-            @handler handler
-            @plugs plugs
-            def handle_in(@name, payload, socket) do
-              {payload, bindings} =
-                case payload do
-                  {:binary, _} -> {payload, %{}}
-                  {payload, bindings} -> {payload, bindings}
-                  payload -> {payload, %{}}
-                end
+  defmacro build_delegate(delegate, plugs) do
+    quote location: :keep, bind_quoted: [delegate: delegate, plugs: plugs] do
+      @delegate delegate
+      @prefix delegate.prefix
+      @plugs plugs
+      def handle_in(@prefix <> event, payload, socket) do
+        context = ChannelHandler.Extension.build_context(event)
 
-              bindings = Map.put_new(bindings, :__event__, @name)
-
-              result =
-                ChannelHandler.Extension.process_plugs(
-                  @plugs,
-                  socket,
-                  payload,
-                  bindings,
-                  __ENV__
-                )
-
-              case result do
-                {:cont, socket, payload, bindings} ->
-                  case @handler do
-                    fun when is_function(fun) -> fun.(payload, bindings, socket)
-                    {m, f, a} -> apply(m, f, [{payload, bindings}, socket])
-                    module when is_atom(module) -> module.handle_in({payload, bindings}, socket)
-                  end
-
-                {:reply, reply, socket} ->
-                  {:reply, reply, socket}
-
-                {:noreply, socket} ->
-                  {:noreply, socket}
-              end
-            end
+        with {:cont, socket, payload, context} <-
+               ChannelHandler.Extension.process_plugs(@plugs, socket, payload, context) do
+          @delegate.module.handle_in(event, payload, context, socket)
         end
       end
+    end
+  end
+
+  defmacro build_event(event, plugs) do
+    quote location: :keep, bind_quoted: [event: event, plugs: plugs] do
+      @name event.name
+      @event event
+      @plugs plugs
+      def handle_in(@name, payload, socket) do
+        context = ChannelHandler.Extension.build_context(@name)
+
+        with {:cont, socket, payload, context} <-
+               ChannelHandler.Extension.process_plugs(@plugs, socket, payload, context) do
+          apply(@event.module, @event.function, [
+            payload,
+            context,
+            socket
+          ])
+        end
+      end
+    end
+  end
+
+  defmacro build_handle(handle, plugs) do
+    quote location: :keep, bind_quoted: [handle: handle, plugs: plugs] do
+      @name handle.name
+      @handle handle
+      @plugs plugs
+
+      def handle_in(@name, payload, socket) do
+        context = ChannelHandler.Extension.build_context(@name)
+
+        with {:cont, socket, payload, context} <-
+               ChannelHandler.Extension.process_plugs(@plugs, socket, payload, context) do
+          apply(@handle.function, [
+            payload,
+            context,
+            socket
+          ])
+        end
+      end
+    end
+  end
+
+  defmacro build_group(group, plugs) do
+    quote location: :keep, bind_quoted: [group: group, plugs: plugs] do
+      plugs = plugs ++ group.plugs
+
+      Enum.map(group.handlers, fn
+        %ChannelHandler.Dsl.Delegate{} = delegate ->
+          ChannelHandler.Extension.build_delegate(
+            %{delegate | prefix: group.prefix <> delegate.prefix},
+            plugs
+          )
+
+        %ChannelHandler.Dsl.Event{} = event ->
+          ChannelHandler.Extension.build_event(
+            %{event | name: group.prefix <> event.name},
+            plugs
+          )
+
+        %ChannelHandler.Dsl.Handle{} = handle ->
+          ChannelHandler.Extension.build_handle(
+            %{handle | name: group.prefix <> handle.name},
+            plugs
+          )
+      end)
     end
   end
 end

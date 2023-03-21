@@ -29,6 +29,7 @@ end
 ```
 
 Now you can start defining matchers and event handlers:
+
 ```elixir
 defmodule MyAppWeb.PostChannel do
   use MyAppWeb, :channel
@@ -40,46 +41,51 @@ defmodule MyAppWeb.PostChannel do
     end
   end
 
-  handlers do
-    match "comments:" do
-      handler MyAppWeb.PostCommentsHandler
-    end
+  router do
+    plug MyAppWeb.ChannelPlugs.EnsureAuthenticated
 
-    event "post:create" do
-      plug &check_permission/4, :create_post
+    event "comments:create", MyAppWeb.PostCommentsHandler, :create
 
-      handler fn payload, _bindings, socket
-        case MyApp.Posts.create(payload) do
-          {:ok, post} ->
-            {:reply, {:ok, post}, socket}
+    delegate "comments:", MyAppWeb.PostCommentsHandler
 
-          {:error, reason} ->
-            {:reply, {:error, reason}, socket}
-        end
+    handle "post:create", fn payload, _bindings, socket ->
+      case MyApp.Posts.create(payload) do
+        {:ok, post} ->
+          {:reply, {:ok, post}, socket}
+
+        {:error, reason} ->
+          {:reply, {:error, reason}, socket}
       end
     end
 
-    def check_permission(socket, _payload, _bindings, permission) do
-      if MyApp.Authorization.can?(socket.assigns.current_user, permission) do
-        # using :cont resumes the event handling
-        {:cont, socket, payload, bindings}
-      else
-        # returning :reply or :noreply halts the event handling
-        {:reply, {:error, "Unauthorized"}, socket}
-      end
+    group "secret:" do
+      plug &check_permission/4, :do_secret_stuff
+
+      # An empty prefix matches anything
+      delegate "", SuperSecretHandler
+    end
+  end
+
+  def check_permission(socket, _payload, _bindings, permission) do
+    if MyApp.Authorization.can?(socket.assigns.current_user, permission) do
+      # using :cont resumes the event handling
+      {:cont, socket, payload, bindings}
+    else
+      # returning :reply or :noreply halts the event handling
+      {:reply, {:error, "Unauthorized"}, socket}
     end
   end
 end
 
 defmodule MyAppWeb.PostCommentsHandler do
   use ChannelHandler
+  
+  def handle_in(event, payload, bindings, socket) do
+    # Do something with the delegated event
+  end
 
-  handlers do
-    event "create" do
-      handler fn payload, _bindings, socket do
-        # Create a comment
-      end
-    end
+  def create(payload, bindings, socket) do
+    # Create a comment
   end
 end
 ```

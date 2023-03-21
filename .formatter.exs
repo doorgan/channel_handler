@@ -1,16 +1,16 @@
 spark_locals_without_parens = [
   channel: 1,
-  event: 1,
-  event: 2,
-  handler: 1,
-  match: 1,
-  match: 2,
+  event: 3,
+  handle: 2,
+  delegate: 2,
+  group: 2,
   plug: 1,
-  plug: 2
+  plug: 2,
+  router: 2
 ]
 
 [
-  import_deps: [:phoenix, :spark],
+  import_deps: [:spark],
   inputs: ["*.{ex,exs}", "{config,lib,test}/**/*.{ex,exs}"],
   plugins: [Spark.Formatter],
   locals_without_parens: [],
