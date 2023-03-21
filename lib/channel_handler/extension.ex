@@ -8,15 +8,13 @@ defmodule ChannelHandler.Extension do
     Enum.reduce_while(plugs, {:cont, socket, payload, context}, fn plug,
                                                                    {:cont, socket, payload,
                                                                     context} ->
-      dbg(plug)
-
       result =
         case plug.plug do
-          {_, [fun: fun]} = fun_plug ->
+          {_, [fun: fun]} ->
             fun.(socket, payload, context, plug.options)
 
-          {module, opts} when is_atom(module) ->
-            module.call(socket, payload, context, opts)
+          {module, _} when is_atom(module) ->
+            module.call(socket, payload, context, plug.options)
         end
 
       case result do
