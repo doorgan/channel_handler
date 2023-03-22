@@ -45,8 +45,6 @@ defmodule ChannelHandler.Extension do
 
       {plugs, handlers} = Enum.split_with(router, &is_struct(&1, ChannelHandler.Dsl.Plug))
 
-      dbg(plugs)
-
       @handlers handlers
       @plugs plugs
 
