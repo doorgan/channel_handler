@@ -25,9 +25,7 @@ defmodule ChannelHandler.Dsl do
     args: [:plug, {:optional, :options, []}],
     schema: [
       plug: [
-        type:
-          {:spark_function_behaviour, ChannelHandler.Plugs.Plug,
-           {ChannelHandler.Plugs.Plug.Function, 4}},
+        type: {:or, [:atom, {:fun, 4}]},
         required: true
       ],
       options: [type: :any, required: false]

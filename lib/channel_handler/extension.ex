@@ -47,6 +47,9 @@ defmodule ChannelHandler.Extension do
                                                                     context} ->
       result =
         case plug.plug do
+          {module, function} when is_atom(module) and is_atom(function) ->
+            apply(module, function, [socket, payload, context, plug.options])
+
           fun when is_function(fun, 4) ->
             fun.(socket, payload, context, plug.options)
 
