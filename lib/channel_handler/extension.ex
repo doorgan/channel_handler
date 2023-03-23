@@ -130,17 +130,19 @@ defmodule ChannelHandler.Extension do
 
   def check_action(plug, event_action) do
     case plug.guards[:action] do
+      nil -> true
       actions when is_list(actions) -> event_action in actions
       action when is_atom(action) -> event_action == action
-      nil -> true
+      _ -> true
     end
   end
 
   def check_event(plug, event_name) do
     case plug.guards[:event] do
+      nil -> true
       events when is_list(events) -> event_name in events
       event when is_binary(event) -> event_name == event
-      nil -> true
+      _ -> true
     end
   end
 
