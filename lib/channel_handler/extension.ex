@@ -45,9 +45,7 @@ defmodule ChannelHandler.Extension do
 
       {plugs, handlers} = Enum.split_with(router, &is_struct(&1, ChannelHandler.Dsl.Plug))
 
-      @handlers handlers
       @plugs plugs
-
       def __plugs__() do
         @plugs
       end
@@ -73,32 +71,30 @@ defmodule ChannelHandler.Extension do
   end
 
   defmacro build_delegate(delegate, plugs) do
-    quote location: :keep, bind_quoted: [delegate: delegate, plugs: plugs] do
-      @delegate delegate
-      @prefix delegate.prefix
-      @plugs plugs
+    quote location: :keep do
+      @prefix unquote(delegate).prefix
+
       def handle_in(@prefix <> event, payload, socket) do
         context = ChannelHandler.Extension.build_context(event)
 
         with {:cont, socket, payload, context} <-
-               ChannelHandler.Extension.process_plugs(@plugs, socket, payload, context) do
-          @delegate.module.handle_in(event, payload, context, socket)
+               ChannelHandler.Extension.process_plugs(unquote(plugs), socket, payload, context) do
+          unquote(delegate).module.handle_in(event, payload, context, socket)
         end
       end
     end
   end
 
   defmacro build_event(event, plugs) do
-    quote location: :keep, bind_quoted: [event: event, plugs: plugs] do
-      @name event.name
-      @event event
-      @plugs plugs
+    quote location: :keep do
+      @name unquote(event).name
+
       def handle_in(@name, payload, socket) do
         context = ChannelHandler.Extension.build_context(@name)
 
         with {:cont, socket, payload, context} <-
-               ChannelHandler.Extension.process_plugs(@plugs, socket, payload, context) do
-          apply(@event.module, @event.function, [
+               ChannelHandler.Extension.process_plugs(unquote(plugs), socket, payload, context) do
+          apply(unquote(event).module, unquote(event).function, [
             payload,
             context,
             socket
@@ -109,17 +105,15 @@ defmodule ChannelHandler.Extension do
   end
 
   defmacro build_handle(handle, plugs) do
-    quote location: :keep, bind_quoted: [handle: handle, plugs: plugs] do
-      @name handle.name
-      @handle handle
-      @plugs plugs
+    quote location: :keep do
+      @name unquote(handle).name
 
       def handle_in(@name, payload, socket) do
         context = ChannelHandler.Extension.build_context(@name)
 
         with {:cont, socket, payload, context} <-
-               ChannelHandler.Extension.process_plugs(@plugs, socket, payload, context) do
-          apply(@handle.function, [
+               ChannelHandler.Extension.process_plugs(unquote(plugs), socket, payload, context) do
+          apply(unquote(handle).function, [
             payload,
             context,
             socket
@@ -129,27 +123,28 @@ defmodule ChannelHandler.Extension do
     end
   end
 
-  defmacro build_group(group, plugs) do
-    quote location: :keep, bind_quoted: [group: group, plugs: plugs] do
-      plugs = plugs ++ group.plugs
-
-      Enum.map(group.handlers, fn
+  defmacro build_group(group, parent_plugs) do
+    quote location: :keep do
+      Enum.map(unquote(group).handlers, fn
         %ChannelHandler.Dsl.Delegate{} = delegate ->
+          @delegate delegate
           ChannelHandler.Extension.build_delegate(
-            %{delegate | prefix: group.prefix <> delegate.prefix},
-            plugs
+            %{@delegate | prefix: unquote(group).prefix <> @delegate.prefix},
+            unquote(group).plugs ++ unquote(parent_plugs)
           )
 
         %ChannelHandler.Dsl.Event{} = event ->
+          @event event
           ChannelHandler.Extension.build_event(
-            %{event | name: group.prefix <> event.name},
-            plugs
+            %{@event | name: unquote(group).prefix <> @event.name},
+            unquote(group).plugs ++ unquote(parent_plugs)
           )
 
         %ChannelHandler.Dsl.Handle{} = handle ->
+          @handle handle
           ChannelHandler.Extension.build_handle(
-            %{handle | name: group.prefix <> handle.name},
-            plugs
+            %{@handle | name: unquote(group).prefix <> @handle.name},
+            unquote(group).plugs ++ unquote(parent_plugs)
           )
       end)
     end
