@@ -1,4 +1,4 @@
-defmodule ChannelsHandler.Handler do
+defmodule ChannelHandler.Handler do
   @moduledoc """
   A module implementing an event handler. Modules that `use ChannelHandler` already
   comply with this behaviour, so you should prefer that instead.

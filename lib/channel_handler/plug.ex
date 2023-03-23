@@ -1,4 +1,4 @@
-defmodule ChannelsHandler.Plug do
+defmodule ChannelHandler.Plug do
   @moduledoc """
   A `ChannelHandler.Plug`, is a function or module that takes the connection
   socket, the payload and the current handler bindings, and either returns a
