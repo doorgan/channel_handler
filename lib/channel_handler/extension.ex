@@ -4,16 +4,59 @@ defmodule ChannelHandler.Extension do
   use Spark.Dsl,
     default_extensions: [extensions: ChannelHandler.Dsl]
 
+  @doc """
+  Registers a plug for the current module
+  """
+  defmacro plug(plug)
+
+  defmacro plug({:when, _, [plug, guards]}) do
+    plug(plug, [], guards, __CALLER__)
+  end
+
+  defmacro plug(plug) do
+    plug(plug, [], [], __CALLER__)
+  end
+
+  defmacro plug(plug, opts)
+
+  defmacro plug(plug, {:when, _, [opts, guards]}) do
+    plug(plug, opts, guards, __CALLER__)
+  end
+
+  defmacro plug(plug, opts) do
+    plug(plug, opts, [], __CALLER__)
+  end
+
+  def plug(plug, opts, guards, env) do
+    {value, function} = Spark.CodeHelpers.lift_functions(plug, :module_plug, env)
+
+    quote do
+      unquote(function)
+
+      @plugs %ChannelHandler.Dsl.Plug{
+        plug: unquote(value),
+        options: unquote(opts),
+        guards: unquote(guards)
+      }
+    end
+  end
+
   def process_plugs(plugs, socket, payload, context) do
     Enum.reduce_while(plugs, {:cont, socket, payload, context}, fn plug,
                                                                    {:cont, socket, payload,
                                                                     context} ->
       result =
         case plug.plug do
+          fun when is_function(fun, 4) ->
+            fun.(socket, payload, context, plug.options)
+
           {_, [fun: fun]} ->
             fun.(socket, payload, context, plug.options)
 
           {module, _} when is_atom(module) ->
+            module.call(socket, payload, context, plug.options)
+
+          module when is_atom(module) ->
             module.call(socket, payload, context, plug.options)
         end
 
@@ -85,15 +128,45 @@ defmodule ChannelHandler.Extension do
     end
   end
 
+  def check_action(plug, event_action) do
+    case plug.guards[:action] do
+      actions when is_list(actions) -> event_action in actions
+      action when is_atom(action) -> event_action == action
+      nil -> true
+    end
+  end
+
+  def check_event(plug, event_name) do
+    case plug.guards[:event] do
+      events when is_list(events) -> event_name in events
+      event when is_binary(event) -> event_name == event
+      nil -> true
+    end
+  end
+
   defmacro build_event(event, plugs) do
-    quote location: :keep do
+    quote location: :keep, generated: true do
       @name unquote(event).name
+      @event unquote(event)
 
       def handle_in(@name, payload, socket) do
         context = ChannelHandler.Extension.build_context(@name)
 
+        module_plugs =
+          Keyword.get_values(@event.module.__info__(:attributes), :plugs)
+          |> List.flatten()
+          |> Enum.filter(fn plug ->
+            ChannelHandler.Extension.check_action(plug, @event.function) and
+              ChannelHandler.Extension.check_event(plug, @name)
+          end)
+
         with {:cont, socket, payload, context} <-
-               ChannelHandler.Extension.process_plugs(unquote(plugs), socket, payload, context) do
+               ChannelHandler.Extension.process_plugs(
+                 unquote(plugs) ++ module_plugs,
+                 socket,
+                 payload,
+                 context
+               ) do
           apply(unquote(event).module, unquote(event).function, [
             payload,
             context,
