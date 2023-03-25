@@ -26,7 +26,7 @@ defmodule ChannelHandler.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_doc, ">= 0.0.0"},
+      {:ex_doc, ">= 0.0.0", only: :dev},
       {:spark, "~> 0.4"}
     ]
   end
