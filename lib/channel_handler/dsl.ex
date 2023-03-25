@@ -150,33 +150,33 @@ defmodule ChannelHandler.Dsl do
 
     #### Example
 
-      router do
-        # Adds a module plug to the list of plugs to be run before each event
-        plug MyApp.ChannelPlugs.EnsureAuthenticated
+        router do
+          # Adds a module plug to the list of plugs to be run before each event
+          plug MyApp.ChannelPlugs.EnsureAuthenticated
 
-        # Delegate all events starting with `"foo:"` to the `FooHandler` module
-        delegate "foo:", FooHandler
+          # Delegate all events starting with `"foo:"` to the `FooHandler` module
+          delegate "foo:", FooHandler
 
-        # Delegates `"create"` events to the `FooHandler.create/3` function
-        event "create", FooHandler, :create
+          # Delegates `"create"` events to the `FooHandler.create/3` function
+          event "create", FooHandler, :create
 
-        # Defines an inline handler
-        handle "delete", fn payload, context, socket ->
-          result delete_post(payload)
+          # Defines an inline handler
+          handle "delete", fn payload, context, socket ->
+            result delete_post(payload)
 
-          {:reply, result, socket}
+            {:reply, result, socket}
+          end
+
+          # Defines a group, which is useful to add plugs for a specific group of
+          # events
+          group "comments:" do
+            # Adds a capture function as a plug to be run before each event in the
+            group
+            plug &check_permission/4, :comment
+
+            event "create", CommentsHandler, :create
+          end
         end
-
-        # Defines a group, which is useful to add plugs for a specific group of
-        # events
-        group "comments:" do
-          # Adds a capture function as a plug to be run before each event in the
-          group
-          plug &check_permission/4, :comment
-
-          event "create", CommentsHandler, :create
-        end
-      end
     """,
     entities: [
       @plug,
