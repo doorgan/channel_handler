@@ -1,36 +1,47 @@
 defmodule ChannelHandler.Dsl do
   defmodule Group do
+    @moduledoc false
     defstruct [:prefix, :plugs, :handlers]
   end
 
   defmodule Delegate do
+    @moduledoc false
     defstruct [:prefix, :module]
   end
 
   defmodule Handle do
+    @moduledoc false
     defstruct [:name, :function]
   end
 
   defmodule Event do
+    @moduledoc false
     defstruct [:name, :module, :function]
   end
 
   defmodule Plug do
+    @moduledoc false
     defstruct [:plug, :options, :guards]
   end
 
   @plug %Spark.Dsl.Entity{
     name: :plug,
+    describe: """
+    Registers a plug for the current router/group. Plugs are run in the
+    order they are defined before the event handler.
+
+    An optional argument can be passed as the options for the plug.
+    """,
     target: Plug,
     args: [:plug, {:optional, :options, []}],
     schema: [
       plug: [
-        type: {:or, [:atom, {:fun, 4}]},
+        type: {:spark_function_behaviour, ChannelHandler.Plug, {ChannelHandler.Plug.Function, 4}},
         required: true
       ],
-      options: [type: :any, required: false],
-      module: [:plug]
-    ]
+      options: [type: :any, required: false]
+    ],
+    modules: [:plug]
   }
 
   @event %Spark.Dsl.Entity{
@@ -47,6 +58,24 @@ defmodule ChannelHandler.Dsl do
 
   @delegate %Spark.Dsl.Entity{
     name: :delegate,
+    describe: """
+    Defines a handler that delegates all events matching the `prefix` to the
+    specified `module`'s `c:ChannelHandler.Handler.handle_in/4` callback.
+
+    #### Example
+
+        router do
+          delegate "posts:", PostsHandler
+        end
+
+        defmodule PostsHandler do
+          def handle_in("create", payload, _context, socket) do
+            post = Posts.create(payload)
+
+            {:reply, {:ok, post}, socket}
+          end
+        end
+    """,
     target: Delegate,
     args: [:prefix, :module],
     schema: [
@@ -58,6 +87,20 @@ defmodule ChannelHandler.Dsl do
 
   @handle %Spark.Dsl.Entity{
     name: :handle,
+    describe: """
+    Defines a handler for the `event`. `function` must be an arity 3 function
+    taking the payload, context and socket.any()
+
+    #### Example
+
+        router do
+          handle "create", fn payload, _context, socket ->
+            post = create_post(payload)
+
+            {:reply, post}
+          end
+        end
+    """,
     target: Handle,
     args: [:name, :function],
     schema: [
@@ -102,8 +145,38 @@ defmodule ChannelHandler.Dsl do
   @router %Spark.Dsl.Section{
     name: :router,
     describe: """
-    Defines the `handle_in/3` functions for a Phoenix channel by matching
-    on exact event names, or prefixes.
+    Defines the `handle_in/3` functions for a Phoenix channel by matching on exact
+    event names, or prefixes.
+
+    #### Example
+
+      router do
+        # Adds a module plug to the list of plugs to be run before each event
+        plug MyApp.ChannelPlugs.EnsureAuthenticated
+
+        # Delegate all events starting with `"foo:"` to the `FooHandler` module
+        delegate "foo:", FooHandler
+
+        # Delegates `"create"` events to the `FooHandler.create/3` function
+        event "create", FooHandler, :create
+
+        # Defines an inline handler
+        handle "delete", fn payload, context, socket ->
+          result delete_post(payload)
+
+          {:reply, result, socket}
+        end
+
+        # Defines a group, which is useful to add plugs for a specific group of
+        # events
+        group "comments:" do
+          # Adds a capture function as a plug to be run before each event in the
+          group
+          plug &check_permission/4, :comment
+
+          event "create", CommentsHandler, :create
+        end
+      end
     """,
     entities: [
       @plug,
@@ -116,4 +189,12 @@ defmodule ChannelHandler.Dsl do
 
   use Spark.Dsl.Extension,
     sections: [@join, @router]
+
+  @moduledoc """
+  ## Index
+  #{Spark.Dsl.Extension.doc_index([@join, @router])}
+
+  ## Docs
+  #{Spark.Dsl.Extension.doc([@join, @router])}
+  """
 end

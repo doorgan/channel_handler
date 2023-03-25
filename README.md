@@ -79,6 +79,9 @@ end
 
 defmodule MyAppWeb.PostCommentsHandler do
   use ChannelHandler
+
+  # Add a plug only for the create action
+  plug MyAppWeb.ChannelPlugs.CheckPermission, :comment_posts when action: [:create]
   
   def handle_in(event, payload, bindings, socket) do
     # Do something with the delegated event
@@ -91,7 +94,7 @@ end
 ```
 
 For more explanations about the API functions and what's possible, check the
-docs for `ChannelHandler.API`.
+docs for `ChannelHandler.Dsl`.
 
 ## Copyright and License
 Copyright (c) 2023 dorgandash@gmail.com

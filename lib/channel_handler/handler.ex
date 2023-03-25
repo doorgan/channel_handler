@@ -1,7 +1,6 @@
 defmodule ChannelHandler.Handler do
   @moduledoc """
-  A module implementing an event handler. Modules that `use ChannelHandler` already
-  comply with this behaviour, so you should prefer that instead.
+  A module implementing an event handler.
   """
 
   @callback handle_in(String.t(), term, map, Phoenix.Socket.t()) :: Phoenix.Channel.reply()
