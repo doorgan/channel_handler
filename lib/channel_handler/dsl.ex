@@ -28,7 +28,8 @@ defmodule ChannelHandler.Dsl do
         type: {:or, [:atom, {:fun, 4}]},
         required: true
       ],
-      options: [type: :any, required: false]
+      options: [type: :any, required: false],
+      module: [:plug]
     ]
   }
 
@@ -40,7 +41,8 @@ defmodule ChannelHandler.Dsl do
       name: [type: :string, required: true],
       module: [type: :atom, required: true],
       function: [type: :atom, required: true]
-    ]
+    ],
+    modules: [:module]
   }
 
   @delegate %Spark.Dsl.Entity{
@@ -50,7 +52,8 @@ defmodule ChannelHandler.Dsl do
     schema: [
       prefix: [type: :string, required: true],
       module: [type: :atom, required: true]
-    ]
+    ],
+    modules: [:module]
   }
 
   @handle %Spark.Dsl.Entity{

@@ -30,16 +30,28 @@ defmodule ChannelHandler.Extension do
   def plug(plug, opts, guards, env) do
     {value, function} = Spark.CodeHelpers.lift_functions(plug, :module_plug, env)
 
+    expanded_value =
+      if Macro.quoted_literal?(value) do
+        Macro.prewalk(value, &expand_alias(&1, env))
+      else
+        value
+      end
+
     quote do
       unquote(function)
 
       @plugs %ChannelHandler.Dsl.Plug{
-        plug: unquote(value),
+        plug: unquote(expanded_value),
         options: unquote(opts),
         guards: unquote(guards)
       }
     end
   end
+
+  defp expand_alias({:__aliases__, _, _} = alias, env),
+    do: Macro.expand(alias, %{env | function: {:__attr__, 3}})
+
+  defp expand_alias(other, _env), do: other
 
   def process_plugs(plugs, socket, payload, context) do
     Enum.reduce_while(plugs, {:cont, socket, payload, context}, fn plug,
@@ -116,21 +128,6 @@ defmodule ChannelHandler.Extension do
     end
   end
 
-  defmacro build_delegate(delegate, plugs) do
-    quote location: :keep do
-      @prefix unquote(delegate).prefix
-
-      def handle_in(@prefix <> event, payload, socket) do
-        context = ChannelHandler.Extension.build_context(event)
-
-        with {:cont, socket, payload, context} <-
-               ChannelHandler.Extension.process_plugs(unquote(plugs), socket, payload, context) do
-          unquote(delegate).module.handle_in(event, payload, context, socket)
-        end
-      end
-    end
-  end
-
   def check_action(plug, event_action) do
     case plug.guards[:action] do
       nil -> true
@@ -146,6 +143,28 @@ defmodule ChannelHandler.Extension do
       events when is_list(events) -> event_name in events
       event when is_binary(event) -> event_name == event
       _ -> true
+    end
+  end
+
+  defmacro build_delegate(delegate, plugs) do
+    quote location: :keep do
+      @prefix unquote(delegate).prefix
+
+      def handle_in(@prefix <> event, payload, socket) do
+        context = ChannelHandler.Extension.build_context(event)
+
+        module_plugs =
+          Keyword.get_values(@event.module.__info__(:attributes), :plugs)
+          |> List.flatten()
+          |> Enum.filter(fn plug ->
+            ChannelHandler.Extension.check_event(plug, @name)
+          end)
+
+        with {:cont, socket, payload, context} <-
+               ChannelHandler.Extension.process_plugs(unquote(plugs), socket, payload, context) do
+          unquote(delegate).module.handle_in(event, payload, context, socket)
+        end
+      end
     end
   end
 
