@@ -122,7 +122,7 @@ defmodule ChannelHandler.Extension do
           ChannelHandler.Extension.build_handle(@handle, @plugs)
 
         %ChannelHandler.Dsl.Scope{} = scope ->
-          @scope
+          @scope scope
           ChannelHandler.Extension.build_scope(@scope, @plugs)
       end)
     end
