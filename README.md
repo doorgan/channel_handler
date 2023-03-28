@@ -58,7 +58,7 @@ defmodule MyAppWeb.PostChannel do
       end
     end
 
-    group "secret:" do
+    scope "secret:" do
       plug &check_permission/4, :do_secret_stuff
 
       # An empty prefix matches anything

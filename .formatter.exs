@@ -3,7 +3,7 @@ spark_locals_without_parens = [
   event: 3,
   handle: 2,
   delegate: 2,
-  group: 2,
+  scope: 2,
   plug: 1,
   plug: 2,
   router: 2

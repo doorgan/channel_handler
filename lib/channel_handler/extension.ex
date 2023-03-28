@@ -121,9 +121,9 @@ defmodule ChannelHandler.Extension do
           @handle handle
           ChannelHandler.Extension.build_handle(@handle, @plugs)
 
-        %ChannelHandler.Dsl.Group{} = group ->
-          @group group
-          ChannelHandler.Extension.build_group(@group, @plugs)
+        %ChannelHandler.Dsl.Scope{} = scope ->
+          @scope
+          ChannelHandler.Extension.build_scope(@scope, @plugs)
       end)
     end
   end
@@ -220,28 +220,28 @@ defmodule ChannelHandler.Extension do
     end
   end
 
-  defmacro build_group(group, parent_plugs) do
+  defmacro build_scope(scope, parent_plugs) do
     quote location: :keep do
-      Enum.map(unquote(group).handlers, fn
+      Enum.map(unquote(scope).handlers, fn
         %ChannelHandler.Dsl.Delegate{} = delegate ->
           @delegate delegate
           ChannelHandler.Extension.build_delegate(
-            %{@delegate | prefix: unquote(group).prefix <> @delegate.prefix},
-            unquote(group).plugs ++ unquote(parent_plugs)
+            %{@delegate | prefix: unquote(scope).prefix <> @delegate.prefix},
+            unquote(scope).plugs ++ unquote(parent_plugs)
           )
 
         %ChannelHandler.Dsl.Event{} = event ->
           @event event
           ChannelHandler.Extension.build_event(
-            %{@event | name: unquote(group).prefix <> @event.name},
-            unquote(group).plugs ++ unquote(parent_plugs)
+            %{@event | name: unquote(scope).prefix <> @event.name},
+            unquote(scope).plugs ++ unquote(parent_plugs)
           )
 
         %ChannelHandler.Dsl.Handle{} = handle ->
           @handle handle
           ChannelHandler.Extension.build_handle(
-            %{@handle | name: unquote(group).prefix <> @handle.name},
-            unquote(group).plugs ++ unquote(parent_plugs)
+            %{@handle | name: unquote(scope).prefix <> @handle.name},
+            unquote(scope).plugs ++ unquote(parent_plugs)
           )
       end)
     end

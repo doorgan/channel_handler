@@ -1,5 +1,5 @@
 defmodule ChannelHandler.Dsl do
-  defmodule Group do
+  defmodule Scope do
     @moduledoc false
     defstruct [:prefix, :plugs, :handlers]
   end
@@ -27,7 +27,7 @@ defmodule ChannelHandler.Dsl do
   @plug %Spark.Dsl.Entity{
     name: :plug,
     describe: """
-    Registers a plug for the current router/group. Plugs are run in the
+    Registers a plug for the current router/scope. Plugs are run in the
     order they are defined before the event handler.
 
     An optional argument can be passed as the options for the plug.
@@ -109,9 +109,9 @@ defmodule ChannelHandler.Dsl do
     ]
   }
 
-  @group %Spark.Dsl.Entity{
-    name: :group,
-    target: Group,
+  @scope %Spark.Dsl.Entity{
+    name: :scope,
+    target: Scope,
     args: [:prefix],
     entities: [plugs: [@plug], handlers: [@event, @delegate, @handle]],
     schema: [
@@ -167,11 +167,11 @@ defmodule ChannelHandler.Dsl do
             {:reply, result, socket}
           end
 
-          # Defines a group, which is useful to add plugs for a specific group of
+          # Defines a scope, which is useful to add plugs for a specific scope of
           # events
-          group "comments:" do
+          scope "comments:" do
             # Adds a capture function as a plug to be run before each event in the
-            group
+            scope
             plug &check_permission/4, :comment
 
             event "create", CommentsHandler, :create
@@ -183,7 +183,7 @@ defmodule ChannelHandler.Dsl do
       @event,
       @delegate,
       @handle,
-      @group
+      @scope
     ]
   }
 
