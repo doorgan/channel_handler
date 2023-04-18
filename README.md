@@ -18,13 +18,13 @@ After defining a channel with vanilla Phoenix's `channel`:
 channel "post:*", MyAppWeb.PostChannel
 ```
 
-Define your channel handler, and add `use ChannelHandler` in addition to the
+Define your channel handler, and add `use ChannelHandler.Router` in addition to the
 `use MyAppWeb, :channel`:
 
 ```elixir
 defmodule MyAppWeb.PostChannel do
   use MyAppWeb, :channel
-  use ChannelHandler
+  use ChannelHandler.Router
 end
 ```
 
@@ -33,7 +33,7 @@ Now you can start defining matchers and event handlers:
 ```elixir
 defmodule MyAppWeb.PostChannel do
   use MyAppWeb, :channel
-  use ChannelHandler
+  use ChannelHandler.Router
 
   join do
     handler fn _topic, _payload, socket ->
@@ -78,7 +78,7 @@ defmodule MyAppWeb.PostChannel do
 end
 
 defmodule MyAppWeb.PostCommentsHandler do
-  use ChannelHandler
+  use ChannelHandler.Handler
 
   # Add a plug only for the create action
   plug MyAppWeb.ChannelPlugs.CheckPermission, :comment_posts when action: [:create]
