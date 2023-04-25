@@ -112,10 +112,10 @@ defmodule ChannelHandler.Dsl do
   @scope %Spark.Dsl.Entity{
     name: :scope,
     target: Scope,
-    args: [:prefix],
+    args: [{:optional, :prefix, ""}],
     entities: [plugs: [@plug], handlers: [@event, @delegate, @handle]],
     schema: [
-      prefix: [type: :string, required: false, default: ""]
+      prefix: [type: :string, required: false]
     ]
   }
 

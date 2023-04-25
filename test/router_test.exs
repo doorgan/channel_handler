@@ -57,6 +57,16 @@ defmodule ChannelHandler.RouterTest do
             :with_plug_handler
           end)
         end
+
+        scope do
+          plug(&noop_plug/4)
+
+          handle("no_scope", fn _payload, context, _socket ->
+            assert context.event == "no_scope"
+            assert %Context{} = context
+            :no_scope
+          end)
+        end
       end
 
       def noop_plug(socket, payload, context, _opts) do
@@ -177,5 +187,8 @@ defmodule ChannelHandler.RouterTest do
     assert TestRouter.handle_in("with_plug:handler", %{}, :socket) == :with_plug_handler
     assert_receive :plug_called
     refute_receive :module_plug_called
+
+    assert TestRouter.handle_in("no_scope", %{}, :socket) == :no_scope
+    assert_receive :plug_called
   end
 end
