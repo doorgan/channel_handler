@@ -115,7 +115,7 @@ defmodule ChannelHandler.Dsl do
     args: [:prefix],
     entities: [plugs: [@plug], handlers: [@event, @delegate, @handle]],
     schema: [
-      prefix: [type: :string, required: true]
+      prefix: [type: :string, required: false, default: ""]
     ]
   }
 

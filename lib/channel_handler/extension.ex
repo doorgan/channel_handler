@@ -122,40 +122,77 @@ defmodule ChannelHandler.Extension do
   defmacro build_event(event, plugs) do
     quote location: :keep, generated: true do
       @name unquote(event).name
-      @event unquote(event)
 
-      def handle_in(@name, payload, socket) do
-        context = ChannelHandler.Extension.build_context(@name)
+      case String.split(unquote(event).name, "*") do
+        [bare_event] ->
+          @name bare_event
+          def handle_in(@name, payload, socket) do
+            ChannelHandler.Extension.perform_event(
+              @name,
+              nil,
+              payload,
+              socket,
+              unquote(event),
+              unquote(plugs)
+            )
+          end
 
-        module_plugs =
-          Keyword.get_values(@event.module.__info__(:attributes), :plugs)
-          |> List.flatten()
-          |> Enum.filter(fn plug ->
-            ChannelHandler.Extension.check_action(plug, @event.function) and
-              ChannelHandler.Extension.check_event(plug, @name)
-          end)
+        [prefix, ""] ->
+          @prefix prefix
+          def handle_in(@prefix <> event, payload, socket) do
+            ChannelHandler.Extension.perform_event(
+              event,
+              @prefix,
+              payload,
+              socket,
+              unquote(event),
+              unquote(plugs)
+            )
+          end
 
-        with {:cont, socket, payload, context} <-
-               ChannelHandler.Extension.process_plugs(
-                 unquote(plugs) ++ module_plugs,
-                 socket,
-                 payload,
-                 context
-               ) do
-          apply(unquote(event).module, unquote(event).function, [
-            payload,
-            context,
-            socket
-          ])
-        end
+        _ ->
+          raise ArgumentError, "channels using splat patterns must end with *"
+      end
+    end
+  end
+
+  def perform_event(event_name, prefix, payload, socket, event, plugs) do
+    context = ChannelHandler.Extension.build_context("#{prefix}#{event_name}")
+
+    module_plugs =
+      Keyword.get_values(event.module.__info__(:attributes), :plugs)
+      |> List.flatten()
+      |> Enum.filter(fn plug ->
+        ChannelHandler.Extension.check_action(plug, event.function) and
+          ChannelHandler.Extension.check_event(plug, event_name)
+      end)
+
+    with {:cont, socket, payload, context} <-
+           ChannelHandler.Extension.process_plugs(
+             plugs ++ module_plugs,
+             socket,
+             payload,
+             context
+           ) do
+      if prefix do
+        apply(event.module, event.function, [
+          event_name,
+          payload,
+          context,
+          socket
+        ])
+      else
+        apply(event.module, event.function, [
+          payload,
+          context,
+          socket
+        ])
       end
     end
   end
 
   defmacro build_handle(handle, plugs) do
     quote location: :keep do
-      @name unquote(handle).name
-
       case String.split(unquote(handle).name, "*") do
         [bare_event] ->
           if Function.info(unquote(handle).function)[:arity] != 3 do
