@@ -105,7 +105,7 @@ defmodule ChannelHandler.Dsl do
     args: [:name, :function],
     schema: [
       name: [type: :string, required: true],
-      function: [type: {:fun, 3}, required: true]
+      function: [type: {:or, [{:fun, 3}, {:fun, 4}]}, required: true]
     ]
   }
 

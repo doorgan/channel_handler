@@ -2,7 +2,7 @@ defmodule ChannelHandler.MixProject do
   use Mix.Project
 
   @repo_url "https://github.com/doorgan/channel_handler"
-  @version "0.4.2"
+  @version "0.5.0"
 
   def project do
     [
@@ -27,6 +27,7 @@ defmodule ChannelHandler.MixProject do
   defp deps do
     [
       {:ex_doc, ">= 0.0.0", only: :dev},
+      {:phoenix, ">= 1.6.0", optional: true, only: :test},
       {:spark, "~> 0.4"}
     ]
   end

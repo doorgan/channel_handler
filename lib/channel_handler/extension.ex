@@ -102,7 +102,7 @@ defmodule ChannelHandler.Extension do
       @prefix unquote(delegate).prefix
 
       def handle_in(@prefix <> event, payload, socket) do
-        context = ChannelHandler.Extension.build_context(event)
+        context = ChannelHandler.Extension.build_context(@prefix <> event)
 
         module_plugs =
           Keyword.get_values(@event.module.__info__(:attributes), :plugs)
@@ -156,17 +156,60 @@ defmodule ChannelHandler.Extension do
     quote location: :keep do
       @name unquote(handle).name
 
-      def handle_in(@name, payload, socket) do
-        context = ChannelHandler.Extension.build_context(@name)
+      case String.split(unquote(handle).name, "*") do
+        [bare_event] ->
+          if Function.info(unquote(handle).function)[:arity] != 3 do
+            raise ArgumentError, "bare event handlers must have an arity of 3"
+          end
 
-        with {:cont, socket, payload, context} <-
-               ChannelHandler.Extension.process_plugs(unquote(plugs), socket, payload, context) do
-          apply(unquote(handle).function, [
-            payload,
-            context,
-            socket
-          ])
-        end
+          @name bare_event
+          def handle_in(@name, payload, socket) do
+            ChannelHandler.Extension.perform_handle(
+              @name,
+              nil,
+              payload,
+              socket,
+              unquote(handle),
+              unquote(plugs)
+            )
+          end
+
+        [prefix, ""] ->
+          if Function.info(unquote(handle).function)[:arity] != 4 do
+            raise ArgumentError, "event handlers using splat patterns must have an arity of 4"
+          end
+
+          @prefox prefix
+          def handle_in(@prefix <> rest, payload, socket) do
+            ChannelHandler.Extension.perform_handle(
+              rest,
+              @prefix,
+              payload,
+              socket,
+              unquote(handle),
+              unquote(plugs)
+            )
+          end
+
+        _ ->
+          raise ArgumentError, "channels using splat patterns must end with *"
+      end
+    end
+  end
+
+  def perform_handle(event, prefix, payload, socket, handle, plugs) do
+    context = ChannelHandler.Extension.build_context(event)
+
+    with {:cont, socket, payload, context} <-
+           ChannelHandler.Extension.process_plugs(plugs, socket, payload, context) do
+      if prefix do
+        apply(handle.function, [event, payload, context, socket])
+      else
+        apply(handle.function, [
+          payload,
+          context,
+          socket
+        ])
       end
     end
   end
