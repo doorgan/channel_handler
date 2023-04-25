@@ -2,7 +2,7 @@ defmodule ChannelHandler.MixProject do
   use Mix.Project
 
   @repo_url "https://github.com/doorgan/channel_handler"
-  @version "0.5.0"
+  @version "0.5.1"
 
   def project do
     [
