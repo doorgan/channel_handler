@@ -105,10 +105,10 @@ defmodule ChannelHandler.Extension do
         context = ChannelHandler.Extension.build_context(@prefix <> event)
 
         module_plugs =
-          Keyword.get_values(@event.module.__info__(:attributes), :plugs)
+          Keyword.get_values(unquote(delegate).module.__info__(:attributes), :plugs)
           |> List.flatten()
           |> Enum.filter(fn plug ->
-            ChannelHandler.Extension.check_event(plug, @name)
+            ChannelHandler.Extension.check_event(plug, event)
           end)
 
         with {:cont, socket, payload, context} <-
@@ -121,8 +121,6 @@ defmodule ChannelHandler.Extension do
 
   defmacro build_event(event, plugs) do
     quote location: :keep, generated: true do
-      @name unquote(event).name
-
       case String.split(unquote(event).name, "*") do
         [bare_event] ->
           @name bare_event
@@ -216,7 +214,7 @@ defmodule ChannelHandler.Extension do
             raise ArgumentError, "event handlers using splat patterns must have an arity of 4"
           end
 
-          @prefox prefix
+          @prefix prefix
           def handle_in(@prefix <> rest, payload, socket) do
             ChannelHandler.Extension.perform_handle(
               rest,

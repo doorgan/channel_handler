@@ -12,6 +12,7 @@ defmodule ChannelHandler.RouterTest do
         event("catchall_event:*", ChannelHandler.RouterTest.TestHandler, :event_fun_catchall)
 
         delegate("delegate", ChannelHandler.RouterTest.TestHandler)
+        delegate("plug_delegate:", ChannelHandler.RouterTest.TestHandler)
 
         handle("handler", fn _payload, context, _socket ->
           assert %Context{} = context
@@ -29,6 +30,7 @@ defmodule ChannelHandler.RouterTest do
         scope "scoped:" do
           event("event", ChannelHandler.RouterTest.ScopedHandler, :event_fun)
           event("catchall_event:*", ChannelHandler.RouterTest.ScopedHandler, :event_fun_catchall)
+
           delegate("delegate", ChannelHandler.RouterTest.ScopedHandler)
 
           handle("handler", fn _payload, context, _socket ->
@@ -78,7 +80,11 @@ defmodule ChannelHandler.RouterTest do
     end
 
     defmodule TestHandler do
+      use ChannelHandler.Handler
+
       alias ChannelHandler.Context
+
+      plug((&noop_plug/4) when event: ["event"])
 
       def event_fun(_payload, context, _socket) do
         assert %Context{} = context
@@ -93,10 +99,23 @@ defmodule ChannelHandler.RouterTest do
         :event_catchall
       end
 
+      def handle_in("event", _payload, context, _socket) do
+        assert %Context{} = context
+        assert context.event == "plug_delegate:event"
+        :delegate_plug
+      end
+
       def handle_in(_event, _payload, context, _socket) do
         assert %Context{} = context
         assert context.event == "delegate"
         :delegate
+      end
+
+      def noop_plug(socket, payload, context, _opts) do
+        assert %Context{} = context
+        send(self(), :plug_called)
+
+        {:cont, socket, payload, context}
       end
     end
 
@@ -160,6 +179,9 @@ defmodule ChannelHandler.RouterTest do
     assert TestRouter.handle_in("event", %{}, :socket) == :event
     assert TestRouter.handle_in("catchall_event:event_name", %{}, :socket) == :event_catchall
     assert TestRouter.handle_in("delegate", %{}, :socket) == :delegate
+    assert TestRouter.handle_in("plug_delegate:event", %{}, :socket) == :delegate_plug
+    assert_receive :plug_called
+
     assert TestRouter.handle_in("handler", %{}, :socket) == :handler
 
     assert TestRouter.handle_in("scoped:event", %{}, :socket) == :scoped_event
