@@ -121,6 +121,12 @@ defmodule ChannelHandler.Handler do
         value
       end
 
+    guards =
+      case guards do
+        [] -> true
+        _ -> guards
+      end
+
     plug_fun =
       quote do
         fn socket, payload, context, opts ->
@@ -133,13 +139,13 @@ defmodule ChannelHandler.Handler do
 
           case true do
             true when unquote(guards) ->
-              case unquote(expanded_value) do
-                module when is_atom(module) ->
-                  module.call(socket, payload, context, opts)
-
-                function when is_function(function, 4) ->
-                  function.(socket, payload, context, opts)
-              end
+              ChannelHandler.Extension.apply_plug(
+                unquote(expanded_value),
+                socket,
+                payload,
+                context,
+                opts
+              )
 
             true ->
               {:cont, socket, payload, context}
@@ -147,8 +153,11 @@ defmodule ChannelHandler.Handler do
         end
       end
 
+    {plug_fun, plug_fun_def} = Spark.CodeHelpers.lift_functions(plug_fun, :module_plug, env)
+
     quote location: :keep do
       unquote(function)
+      unquote(plug_fun_def)
 
       @plugs %ChannelHandler.Dsl.Plug{
         plug: unquote(plug_fun),

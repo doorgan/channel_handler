@@ -23,6 +23,10 @@ defmodule ChannelHandler.HandlerTest do
 
         plug(&with_opts/4, [foo: :bar] when action in [:create])
 
+        plug((&ChannelHandler.HandlerTest.Plugs.noop/4) when action in [:delete])
+
+        plug(&ChannelHandler.HandlerTest.Plugs.for_all/4)
+
         def create(_payload, context, socket) do
           {:reply, {:ok, context}, socket}
         end
@@ -55,27 +59,46 @@ defmodule ChannelHandler.HandlerTest do
         end
       end
 
+      defmodule Plugs do
+        alias ChannelHandler.Context
+
+        def noop(socket, payload, context, _opts) do
+          context = Context.assign(context, :noop_called, true)
+          {:cont, socket, payload, context}
+        end
+
+        def for_all(socket, payload, context, _opts) do
+          context = Context.assign(context, :for_all_called, true)
+          {:cont, socket, payload, context}
+        end
+      end
+
       assert {:reply, {:ok, context}, _socket} =
                GuardsRouter.handle_in("create", "payload", %Phoenix.Socket{})
 
       assert context.bindings[:called] == true
       assert context.bindings[:module_plug_called] == true
       assert context.bindings[:opts] == [foo: :bar]
+      assert context.bindings[:for_all_called] == true
 
       assert {:reply, {:ok, context}, _socket} =
                GuardsRouter.handle_in("delete", "payload", %Phoenix.Socket{})
 
       refute context.bindings[:called] == true
+      assert context.bindings[:noop_called] == true
+      assert context.bindings[:for_all_called] == true
 
       assert {:reply, {:ok, context}, _socket} =
                GuardsRouter.handle_in("delegated:update", "payload", %Phoenix.Socket{})
 
       assert context.bindings[:called] == true
+      assert context.bindings[:for_all_called] == true
 
       assert {:reply, {:ok, context}, _socket} =
                GuardsRouter.handle_in("delegated:delete", "payload", %Phoenix.Socket{})
 
       refute context.bindings[:called] == true
+      assert context.bindings[:for_all_called] == true
     end
   end
 end

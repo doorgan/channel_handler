@@ -4,27 +4,32 @@ defmodule ChannelHandler.Extension do
   use Spark.Dsl,
     default_extensions: [extensions: ChannelHandler.Dsl]
 
+  def apply_plug({module, function}, socket, payload, context, opts)
+      when is_atom(module) and is_atom(function) do
+    apply(module, function, [socket, payload, context, opts])
+  end
+
+  def apply_plug(fun, socket, payload, context, opts) when is_function(fun, 4) do
+    fun.(socket, payload, context, opts)
+  end
+
+  def apply_plug({_, [fun: fun]}, socket, payload, context, opts) do
+    fun.(socket, payload, context, opts)
+  end
+
+  def apply_plug({module, _}, socket, payload, context, opts) when is_atom(module) do
+    module.call(socket, payload, context, opts)
+  end
+
+  def apply_plug(module, socket, payload, context, opts) when is_atom(module) do
+    module.call(socket, payload, context, opts)
+  end
+
   def process_plugs(plugs, socket, payload, context) do
     Enum.reduce_while(plugs, {:cont, socket, payload, context}, fn plug,
                                                                    {:cont, socket, payload,
                                                                     context} ->
-      result =
-        case plug.plug do
-          {module, function} when is_atom(module) and is_atom(function) ->
-            apply(module, function, [socket, payload, context, plug.options])
-
-          fun when is_function(fun, 4) ->
-            fun.(socket, payload, context, plug.options)
-
-          {_, [fun: fun]} ->
-            fun.(socket, payload, context, plug.options)
-
-          {module, _} when is_atom(module) ->
-            module.call(socket, payload, context, plug.options)
-
-          module when is_atom(module) ->
-            module.call(socket, payload, context, plug.options)
-        end
+      result = apply_plug(plug.plug, socket, payload, context, plug.options)
 
       case result do
         {:cont, socket, payload, context} -> {:cont, {:cont, socket, payload, context}}
