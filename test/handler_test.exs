@@ -21,6 +21,8 @@ defmodule ChannelHandler.HandlerTest do
 
         plug(ChannelHandler.HandlerTest.ModulePlug when action in [:create])
 
+        plug(&with_opts/4, [foo: :bar] when action in [:create])
+
         def create(_payload, context, socket) do
           {:reply, {:ok, context}, socket}
         end
@@ -35,6 +37,11 @@ defmodule ChannelHandler.HandlerTest do
 
         def noop(socket, payload, context, _opts) do
           context = Context.assign(context, :called, true)
+          {:cont, socket, payload, context}
+        end
+
+        def with_opts(socket, payload, context, opts) do
+          context = Context.assign(context, :opts, opts)
           {:cont, socket, payload, context}
         end
       end
@@ -53,6 +60,7 @@ defmodule ChannelHandler.HandlerTest do
 
       assert context.bindings[:called] == true
       assert context.bindings[:module_plug_called] == true
+      assert context.bindings[:opts] == [foo: :bar]
 
       assert {:reply, {:ok, context}, _socket} =
                GuardsRouter.handle_in("delete", "payload", %Phoenix.Socket{})

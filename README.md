@@ -39,7 +39,6 @@ defmodule MyAppWeb.PostChannel do
     {:ok, socket}
   end
 
- 
   plug MyAppWeb.ChannelPlugs.EnsureAuthenticated
 
   event "comments:create", MyAppWeb.PostCommentsHandler, :create
@@ -81,7 +80,7 @@ defmodule MyAppWeb.PostCommentsHandler do
   use ChannelHandler.Handler
 
   # Add a plug only for the create action
-  plug MyAppWeb.ChannelPlugs.CheckPermission, :comment_posts when action: [:create]
+  plug MyAppWeb.ChannelPlugs.CheckPermission, :comment_posts when action in [:create]
   
   def handle_in(event, payload, bindings, socket) do
     # Do something with the delegated event
