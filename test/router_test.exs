@@ -84,7 +84,7 @@ defmodule ChannelHandler.RouterTest do
 
       alias ChannelHandler.Context
 
-      plug((&noop_plug/4) when event: ["event"])
+      plug((&noop_plug/4) when event == "event")
 
       def event_fun(_payload, context, _socket) do
         assert %Context{} = context
@@ -101,13 +101,15 @@ defmodule ChannelHandler.RouterTest do
 
       def handle_in("event", _payload, context, _socket) do
         assert %Context{} = context
-        assert context.event == "plug_delegate:event"
+        assert context.event == "event"
+        assert context.full_event == "plug_delegate:event"
         :delegate_plug
       end
 
-      def handle_in(_event, _payload, context, _socket) do
+      def handle_in(event, _payload, context, _socket) do
         assert %Context{} = context
-        assert context.event == "delegate"
+        assert context.event == event
+        assert context.full_event == "delegate"
         :delegate
       end
 
@@ -135,9 +137,10 @@ defmodule ChannelHandler.RouterTest do
         :scoped_event_catchall
       end
 
-      def handle_in(_event, _payload, context, _socket) do
+      def handle_in(event, _payload, context, _socket) do
         assert %Context{} = context
-        assert context.event == "scoped:delegate"
+        assert context.event == event
+        assert context.full_event == "scoped:delegate"
         :scoped_delegate
       end
     end
@@ -147,7 +150,7 @@ defmodule ChannelHandler.RouterTest do
 
       alias ChannelHandler.Context
 
-      plug((&module_plug/4) when action: [:event_fun, :event_fun_catchall])
+      plug((&module_plug/4) when action in [:event_fun, :event_fun_catchall])
 
       def event_fun(_payload, context, _socket) do
         assert %Context{} = context
@@ -162,9 +165,10 @@ defmodule ChannelHandler.RouterTest do
         :with_plug_event_catchall
       end
 
-      def handle_in(_event, _payload, context, _socket) do
+      def handle_in(event, _payload, context, _socket) do
         assert %Context{} = context
-        assert context.event == "with_plug:delegate"
+        assert context.event == event
+        assert context.full_event == "with_plug:delegate"
         :with_plug_delegate
       end
 

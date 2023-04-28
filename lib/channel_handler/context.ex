@@ -1,9 +1,10 @@
 defmodule ChannelHandler.Context do
   @type t :: %__MODULE__{
           bindings: map,
+          action: atom() | nil,
           event: String.t()
         }
-  defstruct [:bindings, :event]
+  defstruct [:action, :full_event, :event, bindings: %{}]
 
   @doc """
   Puts a value in the context bindings.

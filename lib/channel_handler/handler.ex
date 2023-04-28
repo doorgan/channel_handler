@@ -60,13 +60,38 @@ defmodule ChannelHandler.Handler do
         value
       end
 
-    quote do
+    plug_fun =
+      quote do
+        fn socket, payload, context, opts ->
+          unquote(Macro.var(:action, nil)) = context.action
+          unquote(Macro.var(:event, nil)) = context.event
+
+          # Avoid "variable not used" warnings
+          _ = var!(action)
+          _ = var!(event)
+
+          case true do
+            true when unquote(guards) ->
+              case unquote(expanded_value) do
+                module when is_atom(module) ->
+                  module.call(socket, payload, context, opts)
+
+                function when is_function(function, 4) ->
+                  function.(socket, payload, context, opts)
+              end
+
+            true ->
+              {:cont, socket, payload, context}
+          end
+        end
+      end
+
+    quote location: :keep do
       unquote(function)
 
       @plugs %ChannelHandler.Dsl.Plug{
-        plug: unquote(expanded_value),
-        options: unquote(opts),
-        guards: unquote(guards)
+        plug: unquote(plug_fun),
+        options: unquote(opts)
       }
     end
   end

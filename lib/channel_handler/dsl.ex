@@ -21,7 +21,7 @@ defmodule ChannelHandler.Dsl do
 
   defmodule Plug do
     @moduledoc false
-    defstruct [:plug, :options, :guards]
+    defstruct [:plug, :options]
   end
 
   @plug %Spark.Dsl.Entity{
