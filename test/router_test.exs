@@ -7,69 +7,69 @@ defmodule ChannelHandler.RouterTest do
 
       alias ChannelHandler.Context
 
-      router do
-        event("event", ChannelHandler.RouterTest.TestHandler, :event_fun)
-        event("catchall_event:*", ChannelHandler.RouterTest.TestHandler, :event_fun_catchall)
+      event("event", ChannelHandler.RouterTest.TestHandler, :event_fun)
+      event("catchall_event:*", ChannelHandler.RouterTest.TestHandler, :event_fun_catchall)
 
-        delegate("delegate", ChannelHandler.RouterTest.TestHandler)
-        delegate("plug_delegate:", ChannelHandler.RouterTest.TestHandler)
+      delegate("delegate", ChannelHandler.RouterTest.TestHandler)
+      delegate("plug_delegate:", ChannelHandler.RouterTest.TestHandler)
+
+      handle("handler", fn _payload, context, _socket ->
+        assert %Context{} = context
+        assert context.event == "handler"
+        :handler
+      end)
+
+      handle("catchall:*", fn event, _payload, context, _socket ->
+        assert %Context{} = context
+        assert event == "handler"
+        assert context.event == "catchall:handler"
+        :catchall_handler
+      end)
+
+      scope "scoped:" do
+        event("event", ChannelHandler.RouterTest.ScopedHandler, :event_fun)
+        event("catchall_event:*", ChannelHandler.RouterTest.ScopedHandler, :event_fun_catchall)
+
+        delegate("delegate", ChannelHandler.RouterTest.ScopedHandler)
 
         handle("handler", fn _payload, context, _socket ->
+          assert context.event == "scoped:handler"
           assert %Context{} = context
-          assert context.event == "handler"
-          :handler
+          :scoped_handler
         end)
-
-        handle("catchall:*", fn event, _payload, context, _socket ->
-          assert %Context{} = context
-          assert event == "handler"
-          assert context.event == "catchall:handler"
-          :catchall_handler
-        end)
-
-        scope "scoped:" do
-          event("event", ChannelHandler.RouterTest.ScopedHandler, :event_fun)
-          event("catchall_event:*", ChannelHandler.RouterTest.ScopedHandler, :event_fun_catchall)
-
-          delegate("delegate", ChannelHandler.RouterTest.ScopedHandler)
-
-          handle("handler", fn _payload, context, _socket ->
-            assert context.event == "scoped:handler"
-            assert %Context{} = context
-            :scoped_handler
-          end)
-        end
-
-        scope "with_plug:" do
-          plug(&noop_plug/4)
-
-          event("event", ChannelHandler.RouterTest.WithPlugHandler, :event_fun)
-
-          event(
-            "catchall_event:*",
-            ChannelHandler.RouterTest.WithPlugHandler,
-            :event_fun_catchall
-          )
-
-          delegate("delegate", ChannelHandler.RouterTest.WithPlugHandler)
-
-          handle("handler", fn _payload, context, _socket ->
-            assert context.event == "with_plug:handler"
-            assert %Context{} = context
-            :with_plug_handler
-          end)
-        end
-
-        scope do
-          plug(&noop_plug/4)
-
-          handle("no_scope", fn _payload, context, _socket ->
-            assert context.event == "no_scope"
-            assert %Context{} = context
-            :no_scope
-          end)
-        end
       end
+
+      scope "with_plug:" do
+        plug(&noop_plug/4)
+
+        event("event", ChannelHandler.RouterTest.WithPlugHandler, :event_fun)
+
+        event(
+          "catchall_event:*",
+          ChannelHandler.RouterTest.WithPlugHandler,
+          :event_fun_catchall
+        )
+
+        delegate("delegate", ChannelHandler.RouterTest.WithPlugHandler)
+
+        handle("handler", fn _payload, context, _socket ->
+          assert context.event == "with_plug:handler"
+          assert %Context{} = context
+          :with_plug_handler
+        end)
+      end
+
+      scope do
+        plug(&noop_plug/4)
+
+        handle("no_scope", fn _payload, context, _socket ->
+          assert context.event == "no_scope"
+          assert %Context{} = context
+          :no_scope
+        end)
+      end
+
+      delegate(ChannelHandler.RouterTest.DelegateHandler)
 
       def noop_plug(socket, payload, context, _opts) do
         assert %Context{} = context
@@ -176,6 +176,18 @@ defmodule ChannelHandler.RouterTest do
       end
     end
 
+    defmodule DelegateHandler do
+      use ChannelHandler.Handler
+
+      alias ChannelHandler.Context
+
+      def handle_in(_event, _payload, context, _socket) do
+        assert %Context{} = context
+        assert context.event == "fully_delegated"
+        :fully_delegated
+      end
+    end
+
     assert TestRouter.handle_in("event", %{}, :socket) == :event
     assert TestRouter.handle_in("catchall_event:event_name", %{}, :socket) == :event_catchall
     assert TestRouter.handle_in("delegate", %{}, :socket) == :delegate
@@ -212,5 +224,27 @@ defmodule ChannelHandler.RouterTest do
 
     assert TestRouter.handle_in("no_scope", %{}, :socket) == :no_scope
     assert_receive :plug_called
+
+    assert TestRouter.handle_in("fully_delegated", %{}, :socket) == :fully_delegated
+  end
+
+  describe "join" do
+    defmodule JoinTestRouter do
+      use ChannelHandler.Router
+
+      channel("join_test:*")
+
+      join(fn topic, payload, socket ->
+        assert %Phoenix.Socket{} = socket
+        assert socket.assigns.__channel__ == "join_test:*"
+        assert topic == "topic"
+        assert payload == %{}
+        :ok
+      end)
+    end
+
+    test "defines the join function" do
+      assert JoinTestRouter.join("topic", %{}, %Phoenix.Socket{}) == :ok
+    end
   end
 end

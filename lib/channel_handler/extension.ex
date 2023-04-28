@@ -41,7 +41,7 @@ defmodule ChannelHandler.Extension do
   def handle_before_compile(_opts) do
     quote location: :keep, generated: true, unquote: false do
       @_channel Spark.Dsl.Extension.get_opt(__MODULE__, [:join], :channel)
-      @_join_fun Spark.Dsl.Extension.get_opt(__MODULE__, [:join], :handler)
+      @_join_fun Spark.Dsl.Extension.get_opt(__MODULE__, [:join], :join)
 
       if @_channel && @_join_fun do
         def join(topic, payload, socket) do

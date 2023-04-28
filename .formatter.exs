@@ -1,5 +1,6 @@
 spark_locals_without_parens = [
   channel: 1,
+  join: 1,
   event: 3,
   handle: 2,
   delegate: 2,

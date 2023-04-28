@@ -64,9 +64,7 @@ defmodule ChannelHandler.Dsl do
 
     #### Example
 
-        router do
-          delegate "posts:", PostsHandler
-        end
+        delegate "posts:", PostsHandler
 
         defmodule PostsHandler do
           def handle_in("create", payload, _context, socket) do
@@ -77,7 +75,7 @@ defmodule ChannelHandler.Dsl do
         end
     """,
     target: Delegate,
-    args: [:prefix, :module],
+    args: [{:optional, :prefix, ""}, :module],
     schema: [
       prefix: [type: :string, required: true],
       module: [type: :atom, required: true]
@@ -93,12 +91,10 @@ defmodule ChannelHandler.Dsl do
 
     #### Example
 
-        router do
-          handle "create", fn payload, _context, socket ->
-            post = create_post(payload)
+        handle "create", fn payload, _context, socket ->
+          post = create_post(payload)
 
-            {:reply, post}
-          end
+          {:reply, post}
         end
     """,
     target: Handle,
@@ -121,6 +117,7 @@ defmodule ChannelHandler.Dsl do
 
   @join %Spark.Dsl.Section{
     name: :join,
+    top_level?: true,
     schema: [
       channel: [
         type: :string,
@@ -132,9 +129,9 @@ defmodule ChannelHandler.Dsl do
         The channel value is stored in the socket's `:__channel__` assign.
         """
       ],
-      handler: [
+      join: [
         type: {:fun, 3},
-        required: true,
+        required: false,
         doc: """
         The function to run in the channel's `join` callback.
         """
@@ -144,38 +141,37 @@ defmodule ChannelHandler.Dsl do
 
   @router %Spark.Dsl.Section{
     name: :router,
+    top_level?: true,
     describe: """
     Defines the `handle_in/3` functions for a Phoenix channel by matching on exact
     event names, or prefixes.
 
     #### Example
 
-        router do
-          # Adds a module plug to the list of plugs to be run before each event
-          plug MyApp.ChannelPlugs.EnsureAuthenticated
+        # Adds a module plug to the list of plugs to be run before each event
+        plug MyApp.ChannelPlugs.EnsureAuthenticated
 
-          # Delegate all events starting with `"foo:"` to the `FooHandler` module
-          delegate "foo:", FooHandler
+        # Delegate all events starting with `"foo:"` to the `FooHandler` module
+        delegate "foo:", FooHandler
 
-          # Delegates `"create"` events to the `FooHandler.create/3` function
-          event "create", FooHandler, :create
+        # Delegates `"create"` events to the `FooHandler.create/3` function
+        event "create", FooHandler, :create
 
-          # Defines an inline handler
-          handle "delete", fn payload, context, socket ->
-            result delete_post(payload)
+        # Defines an inline handler
+        handle "delete", fn payload, context, socket ->
+          result delete_post(payload)
 
-            {:reply, result, socket}
-          end
+          {:reply, result, socket}
+        end
 
-          # Defines a scope, which is useful to add plugs for a specific scope of
-          # events
-          scope "comments:" do
-            # Adds a capture function as a plug to be run before each event in the
-            scope
-            plug &check_permission/4, :comment
+        # Defines a scope, which is useful to add plugs for a specific scope of
+        # events
+        scope "comments:" do
+          # Adds a capture function as a plug to be run before each event in the
+          scope
+          plug &check_permission/4, :comment
 
-            event "create", CommentsHandler, :create
-          end
+          event "create", CommentsHandler, :create
         end
     """,
     entities: [

@@ -6,9 +6,7 @@ defmodule ChannelHandler.Router do
 
       use ChannelHandler.Router
 
-      router do
-        # Your events here
-      end
+      # Your events here
   """
 
   defmacro __using__(_opts) do

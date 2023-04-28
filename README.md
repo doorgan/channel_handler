@@ -35,35 +35,35 @@ defmodule MyAppWeb.PostChannel do
   use MyAppWeb, :channel
   use ChannelHandler.Router
 
-  join do
-    handler fn _topic, _payload, socket ->
-      {:ok, socket}
+  join fn _topic, _payload, socket ->
+    {:ok, socket}
+  end
+
+ 
+  plug MyAppWeb.ChannelPlugs.EnsureAuthenticated
+
+  event "comments:create", MyAppWeb.PostCommentsHandler, :create
+
+  delegate "comments:", MyAppWeb.PostCommentsHandler
+
+  handle "post:create", fn payload, _bindings, socket ->
+    case MyApp.Posts.create(payload) do
+      {:ok, post} ->
+        {:reply, {:ok, post}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, socket}
     end
   end
 
-  router do
-    plug MyAppWeb.ChannelPlugs.EnsureAuthenticated
+  scope "secret:" do
+    plug &check_permission/4, :do_secret_stuff
 
-    event "comments:create", MyAppWeb.PostCommentsHandler, :create
+    # You can use splat patterns to match anything with *
+    event "foo:*", SuperSecretHandler, :foo
 
-    delegate "comments:", MyAppWeb.PostCommentsHandler
-
-    handle "post:create", fn payload, _bindings, socket ->
-      case MyApp.Posts.create(payload) do
-        {:ok, post} ->
-          {:reply, {:ok, post}, socket}
-
-        {:error, reason} ->
-          {:reply, {:error, reason}, socket}
-      end
-    end
-
-    scope "secret:" do
-      plug &check_permission/4, :do_secret_stuff
-
-      # An empty prefix matches anything
-      delegate "", SuperSecretHandler
-    end
+    # Not specifying a prefix matches everything
+    delegate SuperSecretHandler
   end
 
   def check_permission(socket, _payload, _bindings, permission) do
