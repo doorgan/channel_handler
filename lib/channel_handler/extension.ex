@@ -48,7 +48,7 @@ defmodule ChannelHandler.Extension do
       @_channel Spark.Dsl.Extension.get_opt(__MODULE__, [:join], :channel)
       @_join_fun Spark.Dsl.Extension.get_opt(__MODULE__, [:join], :join)
 
-      if @_channel && @_join_fun do
+      if @_join_fun do
         def join(topic, payload, socket) do
           socket = Phoenix.Socket.assign(socket, :__channel__, @_channel)
           apply(@_join_fun, [topic, payload, socket])

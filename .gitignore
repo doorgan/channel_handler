@@ -18,3 +18,7 @@ erl_crash.dump
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Ignore LSP artifacts
+/.lexical/
+/.elixir_ls/

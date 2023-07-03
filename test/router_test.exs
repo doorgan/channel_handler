@@ -247,8 +247,21 @@ defmodule ChannelHandler.RouterTest do
       end)
     end
 
+    defmodule JoinTestRouterNoChannel do
+      use ChannelHandler.Router
+
+      join(fn topic, payload, socket ->
+        assert %Phoenix.Socket{} = socket
+        assert socket.assigns.__channel__ == nil
+        assert topic == "topic"
+        assert payload == %{}
+        :ok
+      end)
+    end
+
     test "defines the join function" do
       assert JoinTestRouter.join("topic", %{}, %Phoenix.Socket{}) == :ok
+      assert JoinTestRouterNoChannel.join("topic", %{}, %Phoenix.Socket{}) == :ok
     end
   end
 end

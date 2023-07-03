@@ -118,6 +118,14 @@ defmodule ChannelHandler.Dsl do
   @join %Spark.Dsl.Section{
     name: :join,
     top_level?: true,
+    describe: """
+    Defines the `join/3` function for a Phoenix channel.
+
+    If `channel/1` is also used, the channel name will be store in the socket
+    assigns under the `:__channel__` key. This is useful if you have multiple
+    channels and you need to perform runtime introspection, for example to map
+    a channel name to an AsyncAPI channel name.
+    """,
     schema: [
       channel: [
         type: :string,
