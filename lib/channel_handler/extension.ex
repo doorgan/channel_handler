@@ -229,19 +229,21 @@ defmodule ChannelHandler.Extension do
 
   def perform_handle(event, prefix, payload, socket, handle, plugs) do
     context = ChannelHandler.Extension.build_context(full_event: event, event: event)
+    telemetry_meta = %{event: event, prefix: prefix}
 
-    with {:cont, socket, payload, context} <-
-           ChannelHandler.Extension.process_plugs(plugs, socket, payload, context) do
-      if prefix do
-        apply(handle.function, [event, payload, context, socket])
-      else
-        apply(handle.function, [
-          payload,
-          context,
-          socket
-        ])
-      end
-    end
+    :telemetry.span([:channel_handler, :handle], telemetry_meta, fn ->
+      result =
+        with {:cont, socket, payload, context} <-
+               ChannelHandler.Extension.process_plugs(plugs, socket, payload, context) do
+          if prefix do
+            apply(handle.function, [event, payload, context, socket])
+          else
+            apply(handle.function, [payload, context, socket])
+          end
+        end
+
+      {result, telemetry_meta}
+    end)
   end
 
   defmacro build_scope(scope, parent_plugs) do

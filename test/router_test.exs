@@ -192,6 +192,13 @@ defmodule ChannelHandler.RouterTest do
       end
     end
 
+    :telemetry.attach(
+      :test,
+      [:channel_handler, :handle, :stop],
+      &__MODULE__.assert_telemetry/4,
+      %{}
+    )
+
     assert TestRouter.handle_in("event", %{}, :socket) == :event
     assert TestRouter.handle_in("catchall_event:event_name", %{}, :socket) == :event_catchall
     assert TestRouter.handle_in("delegate", %{}, :socket) == :delegate
@@ -263,5 +270,10 @@ defmodule ChannelHandler.RouterTest do
       assert JoinTestRouter.join("topic", %{}, %Phoenix.Socket{}) == :ok
       assert JoinTestRouterNoChannel.join("topic", %{}, %Phoenix.Socket{}) == :ok
     end
+  end
+
+  def assert_telemetry(_event, meas, meta, _config) do
+    assert meas.duration > 0
+    assert is_binary(meta.event)
   end
 end
