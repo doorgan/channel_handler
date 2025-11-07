@@ -2,7 +2,7 @@ defmodule ChannelHandler.MixProject do
   use Mix.Project
 
   @repo_url "https://github.com/doorgan/channel_handler"
-  @version "0.6.3"
+  @version "1.0.0"
 
   def project do
     [
@@ -12,7 +12,8 @@ defmodule ChannelHandler.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: docs(),
-      package: package()
+      package: package(),
+      elixirc_paths: elixirc_paths(Mix.env())
     ]
   end
 
@@ -28,7 +29,7 @@ defmodule ChannelHandler.MixProject do
     [
       {:ex_doc, ">= 0.0.0", only: :dev},
       {:phoenix, ">= 1.6.0", optional: true, only: :test},
-      {:spark, "~> 2.2.0"}
+      {:spark, "~> 2.3.0"}
     ]
   end
 
@@ -41,6 +42,10 @@ defmodule ChannelHandler.MixProject do
       }
     ]
   end
+
+  defp elixirc_paths(:dev), do: ["lib"]
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   defp docs do
     [

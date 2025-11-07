@@ -7,7 +7,7 @@ Helpers to organize and route messages in complex Phoenix channels.
 Add the following to your mix.exs dependencies:
 
 ```elixir
-{:channel_handler, "~> 0.6"}
+{:channel_handler, "~> 1.0"}
 ```
 
 ## Usage

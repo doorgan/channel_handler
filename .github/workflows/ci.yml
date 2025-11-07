@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - elixir: "1.15.5"
+            otp: "26"
+          - elixir: "1.16.0"
+            otp: "26"
+          - elixir: "1.18.3"
+            otp: "27"
+          - elixir: "1.19.2"
+            otp: "27"
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19"
+          otp-version: "27"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:  
+          path: deps
+          key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-mix-${{ hashFiles('**/mix.lock') }}
+
+      - name: Check formatting
+        run: mix format --check-formatted
+        if: matrix.check_formatted
+
+      - name: Run tests
+        run: mix test
+
+
